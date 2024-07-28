@@ -1,32 +1,43 @@
-import { Body, Controller, Delete, Get, Params, Post, Put } from 'amala'
-import { MessageModel } from '@/models/Message'
+import { Body, Controller, Delete, Get,  Post, Put,Flow,CurrentUser,State } from 'amala'
+import { DocumentType } from '@typegoose/typegoose'
+import checkAuth from '@/middlewares/checkAuth'
+import { Message, MessageModel } from '@/models/Message'
+import { User } from '@/models/User'
+
 
 @Controller('/messages')
+@Flow([checkAuth])
 export default class MessageController {
   @Post('/')
-  async createMessage(@Body() { body, userId }: { body: string, userId: string }) {
-    const message = new MessageModel({ body, userId })
-    await message.save()
-    return message
+  createMessage(
+    @CurrentUser() user: User,
+    @Body({ required: true }) { body }: { body: string }
+  ) {
+    return MessageModel.create({ body, user})
   }
 
   @Get('/')
-  async getMessages() {
-    return await MessageModel.find()
+  getMessages( @CurrentUser() user: User,) {
+    return  MessageModel.find({user})
   }
 
   @Get('/:id')
-  async getMessage(@Params('id') id: string) {
-    return await MessageModel.findById(id)
+  getMessage(@State('message') message: Message) {
+    return message
   }
 
   @Put('/:id')
-  async updateMessage(@Params('id') id: string, @Body() { content }: { content: string }) {
-    return await MessageModel.findByIdAndUpdate(id, { content }, { new: true })
+  updateMessage(
+    @State('message') message: DocumentType<Message>,
+    @Body({ required: true }) { body }: { body: string }
+  ) {
+    return  MessageModel.findByIdAndUpdate(message.id,
+      { body },
+      { new: true })
   }
 
-  @Delete('/:id')
-  async deleteMessage(@Params('id') id: string) {
-    return await MessageModel.findByIdAndDelete
+  @Delete('/:messageId')
+  deleteMessage(@State('message') message: DocumentType<Message>) {
+    return MessageModel.findByIdAndDelete(message.id)
   }
 }
